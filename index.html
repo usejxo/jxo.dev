@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JxoDev</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .file-list {
+      margin-bottom: 20px;
+    }
+    .file-list button {
+      display: block;
+      margin: 5px 0;
+      padding: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .file-list button:hover {
+      background-color: #0056b3;
+    }
+    .editor {
+      margin-top: 20px;
+    }
+    .editor textarea {
+      width: 100%;
+      height: 300px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .editor button {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .editor button:hover {
+      background-color: #218838;
+    }
+    .editor input[type="text"] {
+      width: calc(100% - 22px);
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="file-list" id="file-list">
+    <!-- File buttons will be populated here -->
+  </div>
+  <div class="editor" id="editor">
+    <input type="text" id="file-path" placeholder="Enter file path"/>
+    <textarea id="file-content" placeholder="Select a file to edit..."></textarea>
+    <button id="save-button">Save Changes</button>
+    <button id="create-file-button">Create File</button>
+    <button id="create-folder-button">Create Folder</button>
+    <button id="delete-file-button">Delete File</button>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const fileList = document.getElementById('file-list');
+      const filePath = document.getElementById('file-path');
+      const fileContent = document.getElementById('file-content');
+      const saveButton = document.getElementById('save-button');
+      const createFileButton = document.getElementById('create-file-button');
+      const createFolderButton = document.getElementById('create-folder-button');
+      const deleteFileButton = document.getElementById('delete-file-button');
+
+      // Example files (replace with your file list)
+      const files = ['index.html', 'style.css', 'script.js'];
+
+      // Populate file list
+      files.forEach(file => {
+        const button = document.createElement('button');
+        button.innerText = file;
+        button.onclick = () => loadFile(file);
+        fileList.appendChild(button);
+      });
+
+      function loadFile(file) {
+        fetch(`/api/fetch-file?file=${file}`)
+          .then(response => response.json())
+          .then(data => {
+            filePath.value = file;
+            fileContent.value = data.content;
+            saveButton.onclick = () => saveFile(filePath.value, fileContent.value, 'PUT');
+          })
+          .catch(error => console.error('Error loading file:', error));
+      }
+
+      function saveFile(file, content, method) {
+        fetch('/api/save-file', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ file, content, method })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('File saved successfully!');
+          } else {
+            alert('Error saving file.');
+          }
+        })
+        .catch(error => console.error('Error saving file:', error));
+      }
+
+      function createFile(file, content) {
+        saveFile(file, content, 'PUT');
+      }
+
+      function createFolder(folder) {
+        // Create an empty file in the new folder as a placeholder
+        createFile(`${folder}/placeholder.txt`, 'This is a placeholder file.');
+      }
+
+      function deleteFile(file) {
+        fetch('/api/save-file', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ file, method: 'DELETE' })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('File deleted successfully!');
+            fileList.innerHTML = ''; // Clear and repopulate the file list
+            loadFileList();
+          } else {
+            alert('Error deleting file.');
+          }
+        })
+        .catch(error => console.error('Error deleting file:', error));
+      }
+
+      function loadFileList() {
+        // Fetch the file list from the server and repopulate
+        fetch('/api/file-list')
+          .then(response => response.json())
+          .then(data => {
+            data.files.forEach(file => {
+              const button = document.createElement('button');
+              button.innerText = file;
+              button.onclick = () => loadFile(file);
+              fileList.appendChild(button);
+            });
+          })
+          .catch(error => console.error('Error loading file list:', error));
+      }
+
+      createFileButton.onclick = () => {
+        const newFilePath = prompt('Enter new file path:', 'newfile.txt');
+        if (newFilePath) {
+          createFile(newFilePath, '');
+        }
+      };
+
+      createFolderButton.onclick = () => {
+        const newFolderPath = prompt('Enter new folder name:', 'newfolder');
+        if (newFolderPath) {
+          createFolder(newFolderPath);
+        }
+      };
+
+      deleteFileButton.onclick = () => {
+        const fileToDelete = prompt('Enter file path to delete:');
+        if (fileToDelete) {
+          deleteFile(fileToDelete);
+        }
+      };
+
+      // Initial load of file list
+      loadFileList();
+    });
+  </script>
+</body>
+</html>
